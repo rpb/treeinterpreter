@@ -120,7 +120,39 @@ class TestTreeinterpreter(unittest.TestCase):
             pred, bias, contribs = treeinterpreter.predict(dt, testX, joint_contribution=True)
             self.assertTrue(np.allclose(base_prediction, pred))
             self.assertTrue(np.allclose(base_prediction, np.array([sum(contrib.values()) for contrib in contribs]) + bias))
-        
+
+
+    def test_gbt(self):
+        for GBTClassifier in (GradientBoostingClassifier, ExtraTreesClassifier):
+            idx = np.arange(len(self.iris.data))
+            np.random.shuffle(idx)
+            X = self.iris.data[idx]
+            Y = self.iris.target[idx]
+            dt = ForestClassifier(max_depth=3)
+            dt.fit(X[:int(len(X)/2)], Y[:int(len(X)/2)])
+            testX = X[int(len(X)/2):]
+            base_prediction = dt.predict_proba(testX)
+            pred, bias, contrib = treeinterpreter.predict(dt, testX)
+            self.assertTrue(np.allclose(base_prediction, pred))
+            self.assertTrue(np.allclose(pred, bias + np.sum(contrib, axis=1)))
+
+
+    def test_gbt_joint(self):
+        for GBTClassifier in (GradientBoostingClassifier, ExtraTreesClassifier):
+            idx = np.arange(len(self.iris.data))
+            np.random.shuffle(idx)
+            X = self.iris.data[idx]
+            Y = self.iris.target[idx]
+            dt = GBTClassifier(max_depth=3)
+            dt.fit(X[:int(len(X)/2)], Y[:int(len(X)/2)])
+            testX = X[int(len(X)/2):]
+            base_prediction = dt.predict_proba(testX)
+            pred, bias, contribs = treeinterpreter.predict(dt, testX, joint_contribution=True)
+            self.assertTrue(np.allclose(base_prediction, pred))
+            self.assertTrue(np.allclose(base_prediction, np.array([sum(contrib.values()) for contrib in contribs]) + bias))
+
+
+
     def tearDown(self):
         pass
 
