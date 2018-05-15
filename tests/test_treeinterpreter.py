@@ -13,6 +13,7 @@ import unittest
 
 from sklearn.datasets import load_boston, load_iris
 from sklearn.ensemble import (RandomForestRegressor, RandomForestClassifier,
+                              GradientBoostingRegressor, GradientBoostingClassifier,
                               ExtraTreesClassifier, ExtraTreesRegressor,)
 from sklearn.tree import (DecisionTreeClassifier, DecisionTreeRegressor,
                           ExtraTreeClassifier, ExtraTreeRegressor,)
