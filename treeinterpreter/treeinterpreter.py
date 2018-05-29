@@ -171,9 +171,7 @@ def _predict_gbt(model, X, joint_contribution=False):
     predictions = []
     predictions_scaled = []
     learning_rate = model.learning_rate
-    isFirstTree = True
     norm = 0
-    pred_scaled = 0
 
     if joint_contribution:
 
@@ -211,24 +209,17 @@ def _predict_gbt(model, X, joint_contribution=False):
     else:
         for trees in model.estimators_:
             tree = trees[0]
-            #print "skippy"
             pred, bias, contribution = _predict_tree(tree, X)
             biases.append(bias)
-            if isFirstTree:
-                contributions.append(contribution)
-                norm += 1.0
-                isFirstTree = False
-                pred_scaled = pred
-            else:
-                contributions.append(learning_rate * contribution)
-                norm += learning_rate
-                pred_scaled = pred * learning_rate
-            contributions.append(contribution)
+            contributions.append(learning_rate * contribution)
+            norm += learning_rate
+            pred_scaled = pred * learning_rate
             predictions.append(pred)
             predictions_scaled.append(pred_scaled)
-        print norm
-        return (np.sum(predictions, axis=0)/norm, np.mean(biases, axis=0),
-                np.sum(contributions, axis=0)/norm, np.sum(predictions_scaled, axis=0)/norm)
+        return (np.sum(predictions, axis=0),
+                np.sum(biases, axis=0)/norm,
+                np.sum(contributions, axis=0)/norm,
+                np.sum(predictions_scaled, axis=0))
 
 
 
@@ -266,18 +257,20 @@ def predict(model, X, joint_contribution=False):
         where each array element is a dict from a tuple of feature indices to
         to a value denoting the contribution from that feature tuple.
     """
-    # Only single out response variable supported,
-    if model.n_outputs_ > 1:
-        raise ValueError("Multilabel classification trees not supported")
-
-    if (isinstance(model, DecisionTreeClassifier) or
-        isinstance(model, DecisionTreeRegressor)):
-        return _predict_tree(model, X, joint_contribution=joint_contribution)
-    elif (isinstance(model, ForestClassifier) or
-          isinstance(model, ForestRegressor)):
-        return _predict_forest(model, X, joint_contribution=joint_contribution)
-    elif (isinstance(model, BaseGradientBoosting)):
+    if (isinstance(model, BaseGradientBoosting)):
+        if model.n_classes_ > 2:
+            raise ValueError("Multilabel classification trees not supported")	
         return _predict_gbt(model, X, joint_contribution=joint_contribution)
+    # Only single out response variable supported,
     else:
-        raise ValueError("Wrong model type. Base learner needs to be a "
+        if model.n_outputs_ > 1:
+            raise ValueError("Multilabel classification trees not supported")
+        if (isinstance(model, DecisionTreeClassifier) or
+            isinstance(model, DecisionTreeRegressor)):
+            return _predict_tree(model, X, joint_contribution=joint_contribution)
+        elif (isinstance(model, ForestClassifier) or
+            isinstance(model, ForestRegressor)):
+            return _predict_forest(model, X, joint_contribution=joint_contribution)
+        else:
+            raise ValueError("Wrong model type. Base learner needs to be a "
                          "DecisionTreeClassifier or DecisionTreeRegressor.")
