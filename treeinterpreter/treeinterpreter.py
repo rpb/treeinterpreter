@@ -117,33 +117,33 @@ def _predict_forest(model, X, joint_contribution=False):
     contributions = []
     predictions = []
 
-    
+
     if joint_contribution:
-        
+
         for tree in model.estimators_:
             pred, bias, contribution = _predict_tree(tree, X, joint_contribution=joint_contribution)
 
             biases.append(bias)
             contributions.append(contribution)
             predictions.append(pred)
-        
-        
+
+
         total_contributions = []
-        
+
         for i in range(len(X)):
             contr = {}
             for j, dct in enumerate(contributions):
                 for k in set(dct[i]).union(set(contr.keys())):
                     contr[k] = (contr.get(k, 0)*j + dct[i].get(k,0) ) / (j+1)
 
-            total_contributions.append(contr)    
-            
+            total_contributions.append(contr)
+
         for i, item in enumerate(contribution):
             total_contributions[i]
             sm = sum([v for v in contribution[i].values()])
-                
 
-        
+
+
         return (np.mean(predictions, axis=0), np.mean(biases, axis=0),
             total_contributions)
     else:
@@ -153,8 +153,8 @@ def _predict_forest(model, X, joint_contribution=False):
             biases.append(bias)
             contributions.append(contribution)
             predictions.append(pred)
-        
-        
+
+
         return (np.mean(predictions, axis=0), np.mean(biases, axis=0),
             np.mean(contributions, axis=0))
 
@@ -178,18 +178,9 @@ def _predict_gbt(model, X, joint_contribution=False):
         for tree in model.estimators_:
             pred, bias, contribution = _predict_tree(tree, X, joint_contribution=joint_contribution)
 
-            biases.append(bias)
-            if isFirstTree:
-                contributions.append(contribution)
-                norm += 1.0
-                isFirstTree = False
-                pred_scaled = pred
-            else:
-                contributions.append(learning_rate * contribution)
-                norm += learning_rate
-                pred_scaled = pred * learning_rate
-            predictions.append(pred)
-            predictions_scaled.append(pred_scaled)
+            biases.append(learning_rate * bias)
+            contributions.append(learning_rate * contribution)
+            predictions.append(learning_rate * pred)
         total_contributions = []
 
         for i in range(len(X)):
@@ -204,22 +195,20 @@ def _predict_gbt(model, X, joint_contribution=False):
             total_contributions[i]
             sm = sum([v for v in contribution[i].values()])
 
-        return (np.mean(predictions, axis=0), np.mean(biases, axis=0),
-                total_contributions, np.mean(predictions_scaled, axis=0))
+        return (np.sum(predictions, axis=0), np.sum(biases, axis=0),
+                total_contributions)
     else:
         for trees in model.estimators_:
             tree = trees[0]
+
             pred, bias, contribution = _predict_tree(tree, X)
-            biases.append(bias)
+            biases.append(learning_rate * bias)
             contributions.append(learning_rate * contribution)
-            norm += learning_rate
-            pred_scaled = pred * learning_rate
-            predictions.append(pred)
-            predictions_scaled.append(pred_scaled)
+            predictions.append(learning_rate * pred)
+
         return (np.sum(predictions, axis=0),
-                np.sum(biases, axis=0)/norm,
-                np.sum(contributions, axis=0)/norm,
-                np.sum(predictions_scaled, axis=0))
+                np.sum(biases, axis=0),
+                np.sum(contributions, axis=0))
 
 
 
@@ -237,7 +226,7 @@ def predict(model, X, joint_contribution=False):
 
     X : array-like, shape = (n_samples, n_features)
     Test samples.
-    
+
     joint_contribution : boolean
     Specifies if contributions are given individually from each feature,
     or jointly over them
@@ -249,7 +238,7 @@ def predict(model, X, joint_contribution=False):
         for classification
     * bias, shape = (n_samples) for regression and (n_samples, n_classes) for
         classification
-    * contributions, If joint_contribution is False then returns and  array of 
+    * contributions, If joint_contribution is False then returns and  array of
         shape = (n_samples, n_features) for regression or
         shape = (n_samples, n_features, n_classes) for classification, denoting
         contribution from each feature.
@@ -259,7 +248,7 @@ def predict(model, X, joint_contribution=False):
     """
     if (isinstance(model, BaseGradientBoosting)):
         if model.n_classes_ > 2:
-            raise ValueError("Multilabel classification trees not supported")	
+            raise ValueError("Multilabel classification trees not supported")
         return _predict_gbt(model, X, joint_contribution=joint_contribution)
     # Only single out response variable supported,
     else:
